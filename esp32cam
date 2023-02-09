@@ -1,0 +1,73 @@
+import network,os,time,camera,machine,urequests
+from machine import Pin
+
+Pin04 = Pin(04,Pin.OUT)
+Pin04.value(1)
+
+# 读取sd卡---------------------------------------------------------------------------------------
+sd = machine.SDCard(slot=1) # esp32-cam使用存储卡是卡槽1
+os.mount(sd, "/sd")     # 安装
+# os.listdir('/sd')          # 查看SD卡目录
+# os.umount('/sd')      # 弹出
+
+# 连接wifi---------------------------------------------------------------------------------------
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+if not wlan.isconnected():
+    print('connecting to network...')
+    wlan.connect('jiumi', 'jiujiujiujiu')
+
+    while not wlan.isconnected():
+        pass
+print('网络配置:', wlan.ifconfig())
+
+# 摄像头初始化------------------------------------------------------------------------------------
+try:
+    camera.init(0, format=camera.JPEG)
+except Exception as e:
+    camera.deinit()
+    camera.init(0, format=camera.JPEG)
+
+# 图像设置---------------------------------------------------------------------------------------
+camera.flip(1)
+camera.mirror(1)
+camera.framesize(camera.FRAME_HVGA)
+camera.speffect(camera.EFFECT_NONE)
+camera.whitebalance(camera.WB_NONE)
+camera.saturation(0)
+camera.brightness(0)
+camera.contrast(0)
+camera.quality(10) # 10-63 lower number means higher quality
+
+
+# 主程序----------------------------------------------------------------------------------------
+ls = []
+def identify(n):
+    with open('/sd/%d.jpg'%n, 'rb') as f:
+        img = f.read()
+    result = urequests.post('http://192.168.31.210:24401/',
+                                                    data=img).json()
+    if result['results'] != ls:
+        label = result['results'][0]['label']
+        confidence = result['results'][0]['confidence']
+        return [label,confidence]
+    else:
+        return ['NoCat']
+
+# os.mkdir("/sd/test") # 创建文件夹
+os.chdir("/sd")        # 进入sd卡目录
+
+for n in range(10):    # 向目录下添加文件
+    buf = camera.capture()  # 获取图像数据
+    img = open("%d.jpg"%n, "w")
+    img.write(buf)
+    img.close()
+    time.sleep(0.2)
+    if identify(n)[0] == 'CAT' and identify(n)[1] >= 0.7:
+        print(identify(n))
+        Pin04.value(1)
+        time.sleep(1)
+        Pin04.value(0)
+        break
+    else:
+        print('nocat')
