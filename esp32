@@ -1,0 +1,48 @@
+from machine import Pin,PWM
+import time
+
+Pin22 = Pin(22,Pin.IN)
+shout = PWM(Pin(25))
+Spin = PWM(Pin(13))
+Ema = PWM(Pin(26,Pin.OUT),duty=0)
+
+def Alarm1(): #连续响三声警报
+    shout.freq(400)
+    for i in range(3):
+        shout.duty(10)
+        time.sleep(0.7)
+        shout.duty(0)
+        time.sleep(0.7) 
+
+def Alarm2(): #最后一声警报
+    shout.freq(600)
+    shout.duty(30)
+    time.sleep(1.5)
+    shout.duty(0)
+    time.sleep(1)
+
+def Servo(degree): #舵机旋转
+    Spin.duty(int(((degree) / 90 + 0.5) / 20 * 1023))
+
+def Spin_three(): #电机转三圈
+    Ema.init()
+    Ema.freq(100)
+    Ema.duty(98)
+    time.sleep(2.75)
+    Ema.deinit()
+
+def Procedure_reaction(): #收到接收信号后整体的机器反应程序
+    Spin.freq(50)
+    Alarm1()
+    Spin_three()
+    Servo(0)
+    time.sleep(5)
+    Servo(90)
+    Alarm2()
+
+while 1:
+    if Pin22.value() == 0:
+        Procedure_reaction()
+        time.sleep(5)
+    elif Pin14.value() == 1:
+        continue
